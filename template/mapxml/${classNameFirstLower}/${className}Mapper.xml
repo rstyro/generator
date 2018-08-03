@@ -1,0 +1,155 @@
+<#include "/macro.include"/>
+<#assign className = table.className>   
+<#assign classNameFirstLower = table.classNameFirstLower>   
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<#macro mapperEl value>${r"#{"}${value}}</#macro>
+<#macro namespace>${className}.</#macro>
+
+<mapper namespace="${basepackage}.${classNameFirstLower}.mapper.${className}Mapper">
+
+	<resultMap id="BaseResultMap" type="${basepackage}.${classNameFirstLower}.model.${className}">
+       <#list table.columns as column>
+	   <#if column.pk >
+       <id column="${column.sqlName}"   property="${column.columnNameLower}"  <@gemJdbcType javaType="${column.javaType}"/> />
+       </#if>
+       <#if !column.pk>
+       <result column="${column.sqlName}"   property="${column.columnNameLower}" <@gemJdbcType javaType="${column.javaType}"/> />
+       </#if>
+	   </#list>
+	</resultMap>
+	
+	<!-- 用于select查询公用抽取的列 -->
+	<sql id="Base_Column_List">
+	    <![CDATA[
+		<#list table.columns as column>
+			${column.sqlName} <#if column_has_next>,</#if>
+		</#list>
+	    ]]>
+	</sql>
+
+	  <select id="selectByPrimaryKey" parameterType="java.lang.Long" resultMap="BaseResultMap">
+	    select 
+	    <include refid="Base_Column_List" />
+	    from ${table.sqlName} 
+	    where ${table.idColumn.sqlName} = <@gemMyBatisCol parameterName=table.idColumn.columnNameFirstLower javaType="Long" />
+	  </select>
+	  <!-- 
+	     ${table.idColumn.sqlName}
+	     ${table.idColumn.columnName}
+	     ${table.idColumn.columnNameFirstLower}
+      -->
+       <delete id="deleteByPrimaryKey" parameterType="java.lang.Long">
+	    delete from ${table.sqlName} 
+	    where ${table.idColumn.sqlName} = <@gemMyBatisCol parameterName=table.idColumn.columnNameFirstLower javaType="Long" />
+	  </delete>
+	  
+	  <insert id="insert" parameterType="${basepackage}.${classNameFirstLower}.model.${className}">
+	    insert into ${table.sqlName} (<include refid="Base_Column_List" />)
+	    values (
+		    <#list table.columns as column>
+	        	<@gemMyBatisCol parameterName=column.columnNameFirstLower javaType="${column.javaType}" /> <#if column_has_next>,</#if>
+	        </#list> 
+	    )
+  	  </insert>  
+  
+  <insert id="insertSelective" parameterType="${basepackage}.${classNameFirstLower}.model.${className}">
+    insert into ${table.sqlName}
+    <trim prefix="(" suffix=")" suffixOverrides=",">
+      	    <#list table.columns as column>
+	              <if test="${column.columnNameFirstLower} != null">
+			        ${column.sqlName} ,
+			      </if>
+	        </#list> 
+    </trim>
+    <trim prefix="values (" suffix=")" suffixOverrides=",">
+          <#list table.columns as column>
+	      <if test="${column.columnNameFirstLower} != null">
+	        <@gemMyBatisCol parameterName=column.columnNameFirstLower javaType="${column.javaType}" /> ,
+	      </if>
+          </#list> 
+    </trim>
+  </insert>
+    
+  
+  <update id="updateByPrimaryKeySelective" parameterType="${basepackage}.${classNameFirstLower}.model.${className}">
+    update ${table.sqlName}
+    <set>
+       <#list table.columns as column>
+	      <if test="${column.columnNameFirstLower} != null">
+	         ${column.sqlName} = <@gemMyBatisCol parameterName=column.columnNameFirstLower javaType="${column.javaType}" /> ,
+	      </if>
+       </#list> 
+    </set>
+    where ${table.idColumn.sqlName} = <@gemMyBatisCol parameterName=table.idColumn.columnNameFirstLower javaType="Long" />
+   
+  </update>
+  
+  <update id="updateByPrimaryKey" parameterType="${basepackage}.${classNameFirstLower}.model.${className}">
+    update ${table.sqlName}
+    set  
+        <#list table.columns as column>
+	        ${column.sqlName} = <@gemMyBatisCol parameterName=column.columnNameFirstLower javaType="${column.javaType}" />  <#if column_has_next>,</#if>
+       </#list> 
+    where ${table.idColumn.sqlName} = <@gemMyBatisCol parameterName=table.idColumn.columnNameFirstLower javaType="Long" />
+  </update> 
+	
+  <delete id="deleteByIds" parameterType="java.lang.String">
+	delete from ${table.sqlName}
+    where ${table.idColumn.sqlName} in
+   	<foreach item="ids" collection="array" open="(" separator="," close=")">
+		<@mapperEl "ids"/>
+	</foreach>
+  </delete>
+   
+   <!--  query begin -->
+	  <select id="getByCondition" resultMap="BaseResultMap" parameterType="Map" >
+	    select <include refid="Base_Column_List" />
+	   		from ${table.sqlName}
+	   	  <where>  
+	        <#list table.columns as column>
+	        <if test="${column.columnNameFirstLower} != null">
+		        and ${column.sqlName} = <@gemMyBatisCol parameterName=column.columnNameFirstLower javaType="${column.javaType}" />
+	        </if>
+	       </#list>
+	    </where> 
+	  </select>
+	  <select id="getByCondition4List" resultMap="BaseResultMap" parameterType="Map" >
+	    select <include refid="Base_Column_List" />
+	   		from ${table.sqlName}
+	   	  <where>  
+	        <#list table.columns as column>
+	        <if test="${column.columnNameFirstLower} != null">
+		        and ${column.sqlName} = <@gemMyBatisCol parameterName=column.columnNameFirstLower javaType="${column.javaType}" />
+	        </if>
+	       </#list>
+	    </where> 
+	  </select>
+
+   <!--  query end -->
+
+ <!-- end -->
+	
+</mapper>
+
+<!-- this macro to be use for create jdbcType attribute when u use the mybatis. wzz  -->
+<#macro gemJdbcType javaType>
+	<@compress single_line=true>
+	<#if (javaType=="Long"||javaType=="Integer"||javaType=="Float"||javaType=="Double"||javaType=="java.lang.Long"||javaType=="java.lang.Integer"||javaType=="java.lang.Float"||javaType=="java.lang.Double")>jdbcType="DECIMAL"</#if><#if (javaType=="Date"||javaType=="java.util.Date")>jdbcType="TIMESTAMP"</#if><#if (javaType=="String"||javaType=="java.lang.String")>jdbcType="VARCHAR"</#if>
+    </@compress> 
+</#macro>
+<#macro gemJdbcType_1 javaType>
+	<@compress single_line=true>
+	<#if (javaType=="Long"||javaType=="Integer"||javaType=="Float"||javaType=="Double"||javaType=="java.lang.Long"||javaType=="java.lang.Integer"||javaType=="java.lang.Float"||javaType=="java.lang.Double")>
+	jdbcType=DECIMAL
+	</#if>
+	<#if (javaType=="Date"||javaType=="java.util.Date")>jdbcType=TIMESTAMP</#if>
+	<#if (javaType=="String"||javaType=="java.lang.String")>jdbcType=VARCHAR</#if>
+    </@compress> 
+</#macro>
+<!--生成参数列带jdbcType类型，  parameterName对应列参数名字 小写开头 ， javaType该列对应的属性类型 -->
+<#macro gemMyBatisCol parameterName javaType>
+	<@compress single_line=true>
+		${r"#{"} ${parameterName}, <@gemJdbcType_1 javaType="${javaType}"/> }
+	</@compress> 
+</#macro>
